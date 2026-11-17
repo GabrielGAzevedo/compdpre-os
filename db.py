@@ -117,9 +117,30 @@ def salvar_grupo(ofertas) -> int:
         return produto_id
 
 
-def listar_produtos(limite: int = 30) -> list[dict]:
-    """Produtos acompanhados com o preço atual e o menor preço dos últimos 30 dias."""
-    sql = """
+def _escapar_like(texto: str) -> str:
+    return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def listar_produtos(limite: int = 30, termo: str | None = None,
+                    lojas: list[str] | None = None) -> list[dict]:
+    """Produtos acompanhados com o preço atual e o menor preço dos últimos 30 dias.
+
+    termo: filtra pelos produtos cujo nome contém todas as palavras.
+    lojas: nomes das lojas (ex.: ["Amazon", "Kabum"]) para mostrar só essas ofertas.
+    """
+    filtros, params = [], []
+    for palavra in (termo or "").split():
+        filtros.append(
+            "(p.nome ILIKE %s OR EXISTS (SELECT 1 FROM oferta o2"
+            " WHERE o2.produto_id = p.id AND o2.nome_na_loja ILIKE %s))")
+        padrao = f"%{_escapar_like(palavra)}%"
+        params += [padrao, padrao]
+    if lojas:
+        filtros.append("l.nome = ANY(%s)")
+        params.append(list(lojas))
+    where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
+
+    sql = f"""
         SELECT p.id, p.nome, l.nome AS loja, o.nome_na_loja, o.url,
                pa.valor, pa.coletado_em, m.minimo
         FROM produto p
@@ -130,11 +151,12 @@ def listar_produtos(limite: int = 30) -> list[dict]:
             SELECT MIN(valor) AS minimo FROM preco
             WHERE oferta_id = o.id AND coletado_em >= now() - interval '30 days'
         ) m ON true
+        {where}
         ORDER BY pa.coletado_em DESC
         LIMIT %s
     """
     with Banco() as b:
-        linhas = b.todas(sql, limite * 6)  # até 6 lojas por produto
+        linhas = b.todas(sql, *params, limite * 6)  # até 6 lojas por produto
 
     produtos = {}
     for r in linhas:

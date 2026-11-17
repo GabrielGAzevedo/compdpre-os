@@ -155,14 +155,17 @@ async function buscar(termo) {
   try {
     const dados = await pegarJson(
       `/api/buscar?q=${encodeURIComponent(termo)}&lojas=${lojas.join(",")}`);
+    const historico = dados.origem === "historico";
     const porLoja = Object.entries(dados.encontrados)
       .map(([loja, qtd]) => `${loja}: ${qtd}`).join(" · ");
-    statusEl.textContent =
-      `${dados.resultados.length} produto(s) em 2 lojas ou mais — encontrados por loja: ${porLoja}`;
+    statusEl.textContent = historico
+      ? `${dados.resultados.length} produto(s) já acompanhados que combinam com "${termo}"`
+      : `${dados.resultados.length} produto(s) em 2 lojas ou mais — encontrados por loja: ${porLoja}`;
 
     if (!dados.resultados.length) {
-      mostrarVazio(listaResultados,
-        "Não achamos o mesmo produto em duas lojas ou mais. Tente um termo mais específico, com marca e modelo.");
+      mostrarVazio(listaResultados, historico
+        ? "Esse produto ainda não está sendo acompanhado. Veja abaixo os produtos com preços coletados."
+        : "Não achamos o mesmo produto em duas lojas ou mais. Tente um termo mais específico, com marca e modelo.");
     } else {
       listaResultados.innerHTML = dados.resultados.map(criarCard).join("");
     }

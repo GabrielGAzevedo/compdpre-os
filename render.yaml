@@ -15,6 +15,8 @@ services:
         value: 3.12.7
       - key: PYTHONUNBUFFERED # mostra os avisos (print) nos logs na hora
         value: "1"
+      - key: BUSCA_NAS_LOJAS  # 0 = o site busca só no histórico (as lojas
+        value: "0"            # bloqueiam o Render); a coleta roda no seu PC
       - key: DATABASE_URL     # string do Supabase (Connect > Session pooler)
         sync: false
       - key: SCRAPER_API_KEY  # scraperapi.com: evita o bloqueio das lojas

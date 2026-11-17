@@ -10,6 +10,8 @@ comparador/
 ├── db.py            # histórico no PostgreSQL (Supabase)
 ├── banco.sql        # cria as tabelas
 ├── render.yaml      # configuração para publicar no Render
+├── coletar.ps1      # coleta os preços de termos.txt pelo seu PC
+├── termos.txt       # produtos acompanhados (um por linha)
 ├── requirements.txt
 └── site/            # index.html, style.css, app.js
 ```
@@ -87,15 +89,36 @@ python comparador.py "ssd 1tb" --lojas amazon,kabum,pichau
 
 A cada `git push` no GitHub, o Render publica a nova versão sozinho.
 
+### Passo 4: coletar os preços pelo seu PC
+As lojas bloqueiam servidores na nuvem, então no Render (`BUSCA_NAS_LOJAS=0`) a busca do
+site procura só nos produtos **já salvos no banco**. Quem vai às lojas é o seu PC:
+
+1. Crie um arquivo `.env` nesta pasta com uma linha (a string do Supabase, com a senha):
+   ```
+   DATABASE_URL=postgresql://postgres.xxxx:SENHA@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+   ```
+   O `.env` está no `.gitignore`: não vai para o GitHub.
+2. Coloque os produtos que quer acompanhar no `termos.txt` (um por linha).
+3. Rode no PowerShell, nesta pasta:
+   ```
+   powershell -ExecutionPolicy Bypass -File .\coletar.ps1
+   ```
+   Por padrão busca na Amazon e na Kabum (as que respondem de um PC comum).
+   Para outras: `... -File .\coletar.ps1 -Lojas amazon,kabum,mercadolivre`.
+
+Cada vez que rodar, um novo preço entra no histórico. Para coletar todo dia sozinho, crie
+uma tarefa no **Agendador de Tarefas** do Windows que execute o comando acima.
+
 ### O que esperar do plano grátis
 - **O site "dorme"** depois de 15 minutos sem visitas. A primeira visita depois disso
   demora de 30 a 60 segundos para abrir.
 - **O Supabase pausa o projeto** depois de 7 dias sem nenhum uso do banco. Se acontecer,
   entre no painel do Supabase e clique em **Restore project**. Enquanto o site for usado
   (cada busca grava no banco), ele não pausa.
-- **As lojas bloqueiam servidores na nuvem** (erro 403 nos logs do Render). Por isso, no
-  Render, defina `SCRAPER_API_KEY` com uma chave grátis do https://www.scraperapi.com
-  (~1.000 páginas por mês; cada loja numa busca gasta uma).
+- **As lojas bloqueiam servidores na nuvem** (erro 403 nos logs do Render), e o plano
+  grátis do ScraperAPI também não passou pela proteção delas. Por isso a coleta roda no
+  seu PC (passo 4). Mesmo de um PC comum, Pichau, Terabyte, Magalu e Mercado Livre
+  costumam bloquear; Amazon e Kabum funcionam.
 - Sem banco configurado o site continua funcionando: só a parte de histórico fica vazia.
 
 ---
@@ -105,6 +128,7 @@ A cada `git push` no GitHub, o Render publica a nova versão sozinho.
 | Variável | Para quê |
 |----------|----------|
 | `DATABASE_URL` | conexão com o PostgreSQL (string do Supabase, Session pooler) |
+| `BUSCA_NAS_LOJAS` | `0` faz a busca do site procurar só no histórico do banco (usado no Render) |
 | `SCRAPER_API_KEY` | chave do scraperapi.com; as buscas passam por ele (necessário no Render, onde as lojas bloqueiam o acesso) |
 | `ML_ACCESS_TOKEN` | usa a API oficial do Mercado Livre (crie um app em developers.mercadolivre.com.br) |
 

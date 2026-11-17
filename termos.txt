@@ -1,0 +1,8 @@
+# Um produto por linha. O coletar.ps1 busca cada um na Amazon e na Kabum
+# e grava os preços no banco. Linhas começando com # são ignoradas.
+# Termos específicos (marca + modelo) acham mais correspondências.
+ssd kingston nv3 1tb
+ssd samsung 990 evo 1tb
+memoria ram kingston fury 16gb ddr4
+mouse logitech g203
+teclado redragon kumara
