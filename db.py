@@ -1,75 +1,55 @@
 """
-Acesso ao SQL Server (local ou Azure SQL).
+Acesso ao PostgreSQL (Supabase).
 
-O mesmo código funciona em dois modos:
+Defina a variável de ambiente DATABASE_URL com a string de conexão do Supabase
+(botão "Connect" > "Session pooler"), por exemplo:
 
-1) NUVEM (Render + Azure SQL) - usa pymssql, que não precisa de driver ODBC.
-   Defina as variáveis de ambiente:
-       DB_SERVER    ex.: meuservidor.database.windows.net
-       DB_NAME      ex.: Comparador
-       DB_USER      usuário SQL criado no Azure
-       DB_PASSWORD  senha desse usuário
+    postgresql://postgres.abcdefgh:SENHA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
 
-2) LOCAL (seu PC, SQL Server Express com login do Windows) - usa pyodbc.
-   Se DB_SERVER não estiver definida, conecta em localhost\\SQLEXPRESS.
-   Requer: pip install pyodbc  (e o "ODBC Driver 17 for SQL Server")
-
-As consultas usam %s como marcador de parâmetro; no modo pyodbc ele é
-trocado automaticamente por ?.
+Sem DATABASE_URL o site funciona normalmente, só não guarda histórico.
 """
 
 import os
 
-CONEXAO_LOCAL = os.getenv(
-    "COMPARADOR_DB",
-    "DRIVER={ODBC Driver 17 for SQL Server};"
-    r"SERVER=localhost\SQLEXPRESS;"
-    "DATABASE=Comparador;"
-    "Trusted_Connection=yes;",
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 
 def modo() -> str:
-    return "nuvem" if os.getenv("DB_SERVER") else "local"
+    return "nuvem" if DATABASE_URL else "desativado"
 
 
 def configurado() -> bool:
-    """True se há como conectar (variáveis da nuvem ou pyodbc instalado)."""
-    if modo() == "nuvem":
-        return True
-    try:
-        import pyodbc  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    return bool(DATABASE_URL)
+
+
+def _conectar():
+    import psycopg
+    from psycopg.rows import dict_row
+
+    extras = {}
+    local = any(h in DATABASE_URL for h in ("localhost", "127.0.0.1"))
+    if "sslmode=" not in DATABASE_URL and not local:
+        extras["sslmode"] = "require"  # o Supabase exige SSL
+
+    return psycopg.connect(
+        DATABASE_URL,
+        row_factory=dict_row,
+        connect_timeout=15,
+        # o pooler do Supabase não guarda "prepared statements" entre conexões
+        prepare_threshold=None,
+        **extras,
+    )
 
 
 class Banco:
-    """Pequena camada para usar pymssql e pyodbc do mesmo jeito.
-
-    Uso:
+    """Uso:
         with Banco() as b:
             b.executar("INSERT ...", valor)
             linhas = b.todas("SELECT ...")
     """
 
     def __enter__(self):
-        if modo() == "nuvem":
-            import pymssql
-            self.con = pymssql.connect(
-                server=os.environ["DB_SERVER"],
-                user=os.environ["DB_USER"],
-                password=os.environ["DB_PASSWORD"],
-                database=os.getenv("DB_NAME", "Comparador"),
-                port=int(os.getenv("DB_PORT", "1433")),
-                login_timeout=30,  # o Azure grátis "dorme" e demora a acordar
-                tds_version="7.4",
-            )
-            self.marcador = "%s"
-        else:
-            import pyodbc
-            self.con = pyodbc.connect(CONEXAO_LOCAL)
-            self.marcador = "?"
+        self.con = _conectar()
         self.cur = self.con.cursor()
         return self
 
@@ -81,36 +61,28 @@ class Banco:
         self.con.close()
 
     def executar(self, sql: str, *params):
-        if self.marcador == "%s":  # pymssql: parâmetros numa tupla
-            self.cur.execute(sql, tuple(params) if params else None)
-        else:                      # pyodbc: troca %s por ? e passa soltos
-            self.cur.execute(sql.replace("%s", "?"), *params)
-
-    def _como_dict(self, linha):
-        nomes = [c[0] for c in self.cur.description]
-        return dict(zip(nomes, linha))
+        self.cur.execute(sql, params or None)
 
     def uma(self, sql: str, *params) -> dict | None:
         self.executar(sql, *params)
-        linha = self.cur.fetchone()
-        return self._como_dict(linha) if linha else None
+        return self.cur.fetchone()
 
     def todas(self, sql: str, *params) -> list[dict]:
         self.executar(sql, *params)
-        return [self._como_dict(l) for l in self.cur.fetchall()]
+        return self.cur.fetchall()
 
 
 # ================================================================ operações
 def _id_da_loja(b: Banco, nome: str) -> int:
     """Busca a loja pelo nome; se ainda não existir na tabela, cadastra."""
-    linha = b.uma("SELECT Id FROM Loja WHERE Nome = %s", nome)
+    linha = b.uma("SELECT id FROM loja WHERE nome = %s", nome)
     if linha:
-        return linha["Id"]
-    return b.uma("INSERT INTO Loja (Nome) OUTPUT INSERTED.Id VALUES (%s)", nome)["Id"]
+        return linha["id"]
+    return b.uma("INSERT INTO loja (nome) VALUES (%s) RETURNING id", nome)["id"]
 
 
 def salvar_grupo(ofertas) -> int:
-    """Grava o mesmo produto encontrado em várias lojas e retorna o Id dele.
+    """Grava o mesmo produto encontrado em várias lojas e retorna o id dele.
 
     Cada item de `ofertas` precisa ter: loja, nome, preco e url
     (é o objeto Produto do comparador.py).
@@ -119,76 +91,77 @@ def salvar_grupo(ofertas) -> int:
         # Se alguma das ofertas já existe, reaproveita o produto dela
         produto_id = None
         for o in ofertas:
-            linha = b.uma("SELECT ProdutoId FROM Oferta WHERE Url = %s", o.url)
+            linha = b.uma("SELECT produto_id FROM oferta WHERE url = %s", o.url)
             if linha:
-                produto_id = linha["ProdutoId"]
+                produto_id = linha["produto_id"]
                 break
 
         if produto_id is None:
             produto_id = b.uma(
-                "INSERT INTO Produto (Nome) OUTPUT INSERTED.Id VALUES (%s)",
+                "INSERT INTO produto (nome) VALUES (%s) RETURNING id",
                 ofertas[0].nome[:300],
-            )["Id"]
+            )["id"]
 
         for o in ofertas:
             loja_id = _id_da_loja(b, o.loja)
-            linha = b.uma("SELECT Id FROM Oferta WHERE Url = %s", o.url)
+            linha = b.uma("SELECT id FROM oferta WHERE url = %s", o.url)
             if linha:
-                oferta_id = linha["Id"]
+                oferta_id = linha["id"]
             else:
                 oferta_id = b.uma(
-                    "INSERT INTO Oferta (ProdutoId, LojaId, NomeNaLoja, Url) "
-                    "OUTPUT INSERTED.Id VALUES (%s, %s, %s, %s)",
-                    produto_id, loja_id, o.nome[:300], o.url,
-                )["Id"]
-            b.executar("INSERT INTO Preco (OfertaId, Valor) VALUES (%s, %s)", oferta_id, o.preco)
+                    "INSERT INTO oferta (produto_id, loja_id, nome_na_loja, url) "
+                    "VALUES (%s, %s, %s, %s) RETURNING id",
+                    produto_id, loja_id, o.nome[:300], o.url[:500],
+                )["id"]
+            b.executar("INSERT INTO preco (oferta_id, valor) VALUES (%s, %s)", oferta_id, o.preco)
         return produto_id
 
 
 def listar_produtos(limite: int = 30) -> list[dict]:
     """Produtos acompanhados com o preço atual e o menor preço dos últimos 30 dias."""
     sql = """
-        SELECT TOP (%s) p.Id, p.Nome, l.Nome AS Loja, o.NomeNaLoja, o.Url,
-               pa.Valor, pa.ColetadoEm, m.Minimo
-        FROM Produto p
-        JOIN Oferta o         ON o.ProdutoId = p.Id
-        JOIN Loja l           ON l.Id = o.LojaId
-        JOIN vw_PrecoAtual pa ON pa.OfertaId = o.Id
-        OUTER APPLY (
-            SELECT MIN(Valor) AS Minimo FROM Preco
-            WHERE OfertaId = o.Id AND ColetadoEm >= DATEADD(DAY, -30, SYSDATETIME())
-        ) m
-        ORDER BY pa.ColetadoEm DESC
+        SELECT p.id, p.nome, l.nome AS loja, o.nome_na_loja, o.url,
+               pa.valor, pa.coletado_em, m.minimo
+        FROM produto p
+        JOIN oferta o           ON o.produto_id = p.id
+        JOIN loja l             ON l.id = o.loja_id
+        JOIN vw_preco_atual pa  ON pa.oferta_id = o.id
+        LEFT JOIN LATERAL (
+            SELECT MIN(valor) AS minimo FROM preco
+            WHERE oferta_id = o.id AND coletado_em >= now() - interval '30 days'
+        ) m ON true
+        ORDER BY pa.coletado_em DESC
+        LIMIT %s
     """
     with Banco() as b:
         linhas = b.todas(sql, limite * 6)  # até 6 lojas por produto
 
     produtos = {}
     for r in linhas:
-        p = produtos.setdefault(r["Id"], {"id": r["Id"], "nome": r["Nome"], "ofertas": []})
+        p = produtos.setdefault(r["id"], {"id": r["id"], "nome": r["nome"], "ofertas": []})
         p["ofertas"].append({
-            "loja": r["Loja"],
-            "nome": r["NomeNaLoja"],
-            "url": r["Url"],
-            "preco": float(r["Valor"]),
-            "minimo30d": float(r["Minimo"]) if r["Minimo"] is not None else None,
-            "atualizadoEm": r["ColetadoEm"].isoformat(),
+            "loja": r["loja"],
+            "nome": r["nome_na_loja"],
+            "url": r["url"],
+            "preco": float(r["valor"]),
+            "minimo30d": float(r["minimo"]) if r["minimo"] is not None else None,
+            "atualizadoEm": r["coletado_em"].isoformat(),
         })
     return list(produtos.values())[:limite]
 
 
 def historico(produto_id: int) -> list[dict]:
     sql = """
-        SELECT l.Nome AS Loja, pr.Valor, pr.ColetadoEm
-        FROM Preco pr
-        JOIN Oferta o ON o.Id = pr.OfertaId
-        JOIN Loja l   ON l.Id = o.LojaId
-        WHERE o.ProdutoId = %s
-        ORDER BY pr.ColetadoEm
+        SELECT l.nome AS loja, pr.valor, pr.coletado_em
+        FROM preco pr
+        JOIN oferta o ON o.id = pr.oferta_id
+        JOIN loja l   ON l.id = o.loja_id
+        WHERE o.produto_id = %s
+        ORDER BY pr.coletado_em
     """
     with Banco() as b:
         linhas = b.todas(sql, produto_id)
     return [
-        {"loja": r["Loja"], "preco": float(r["Valor"]), "data": r["ColetadoEm"].isoformat()}
+        {"loja": r["loja"], "preco": float(r["valor"]), "data": r["coletado_em"].isoformat()}
         for r in linhas
     ]

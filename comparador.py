@@ -484,8 +484,10 @@ def main():
         print(f"  >> Economia de {moeda(caro.preco - barato.preco)}  [similaridade {nota:.0f}%]")
         print("-" * 72)
 
-    try:  # salva o histórico no SQL Server, se estiver configurado
+    try:  # salva o histórico no banco, se DATABASE_URL estiver definida
         import db
+        if not db.configurado():
+            return
         for produtos, _ in grupos:
             db.salvar_grupo(produtos)
         print(f"\n{len(grupos)} produto(s) salvos no banco.")

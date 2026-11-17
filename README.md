@@ -7,7 +7,7 @@ No site você marca quais lojas quer comparar (mínimo 2) e vê o histórico de 
 comparador/
 ├── api.py           # API FastAPI + serve o site
 ├── comparador.py    # busca nas lojas e compara (também roda no terminal)
-├── db.py            # histórico no SQL Server (local ou Azure)
+├── db.py            # histórico no PostgreSQL (Supabase)
 ├── banco.sql        # cria as tabelas
 ├── render.yaml      # configuração para publicar no Render
 ├── requirements.txt
@@ -18,11 +18,14 @@ comparador/
 
 ## 1. Rodar no seu PC (Windows)
 
-1. No SSMS: `CREATE DATABASE Comparador;`, selecione o banco e rode o `banco.sql`.
-2. Instale as dependências (Python 3.10+):
+1. Instale as dependências (Python 3.10+):
    ```
    pip install -r requirements.txt
-   pip install pyodbc
+   ```
+2. (Opcional) Para guardar o histórico, use o mesmo banco do Supabase (passo 2 abaixo).
+   No PowerShell, antes de subir o servidor:
+   ```
+   $env:DATABASE_URL = "postgresql://postgres.xxxx:SENHA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
    ```
 3. Suba o servidor:
    ```
@@ -30,8 +33,7 @@ comparador/
    ```
 4. Abra **http://localhost:8000**
 
-Sem variáveis de ambiente, o `db.py` conecta no `localhost\SQLEXPRESS` com login do Windows
-(precisa do "ODBC Driver 17 for SQL Server").
+Sem `DATABASE_URL` o site funciona normalmente, só a parte de histórico fica vazia.
 
 No terminal também funciona:
 ```
@@ -41,7 +43,7 @@ python comparador.py "ssd 1tb" --lojas amazon,kabum,pichau
 
 ---
 
-## 2. Publicar de graça (GitHub + Azure SQL + Render)
+## 2. Publicar de graça (GitHub + Supabase + Render)
 
 ### Passo 1: subir o código para o GitHub
 1. Crie um repositório em https://github.com/new (pode ser público).
@@ -55,33 +57,29 @@ python comparador.py "ssd 1tb" --lojas amazon,kabum,pichau
    git push -u origin main
    ```
 
-### Passo 2: criar o banco grátis no Azure
-1. Crie a conta em https://azure.microsoft.com/free (pede cartão para verificação, mas a
-   oferta grátis do banco não cobra).
-2. No portal, procure **SQL databases** > **Create**.
-3. No topo da página aparece o banner **"Want to try Azure SQL Database for free?" > Apply offer**. Clique nele.
-4. Preencha:
-   - **Database name:** `Comparador`
-   - **Server:** *Create new* > escolha um nome (vira `nome.database.windows.net`),
-     região (ex.: Brazil South) e **autenticação SQL** com usuário e senha forte. Anote os dois.
-   - Em **Free offer behavior**, deixe *Auto-pause the database until next month*
-     (assim nunca cobra; se acabar a cota do mês, o banco pausa até o mês seguinte).
-5. Na aba **Networking**: *Public endpoint* e marque
-   **"Allow Azure services and resources to access this server"**.
-6. Crie. Quando terminar, abra o banco > **Query editor**, entre com o usuário e senha
-   e rode o conteúdo do `banco.sql`.
-7. Liberar o Render no firewall: o Render grátis não tem IP fixo. Em **Server > Networking >
-   Firewall rules**, adicione uma regra de `0.0.0.0` a `255.255.255.255`.
-   ⚠️ Isso deixa o servidor acessível de qualquer IP: a proteção passa a ser só a senha,
-   então use uma senha longa e não use esse banco para dados sensíveis.
+### Passo 2: criar o banco grátis no Supabase
+1. Crie a conta em https://supabase.com (entre com o GitHub, não pede cartão).
+2. **New project**:
+   - **Name:** `precocerto`
+   - **Database Password:** clique em *Generate a password* e **guarde a senha**.
+     Se escolher uma senha sua, use só letras e números (símbolos como `@`, `#`, `/`
+     quebram a string de conexão).
+   - **Region:** South America (São Paulo).
+3. Quando o projeto terminar de criar, vá em **SQL Editor** > **New query**, cole todo o
+   `banco.sql` e clique em **Run**.
+4. Clique em **Connect** (no topo) e copie a string do **Session pooler**. Ela tem este formato:
+   ```
+   postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+   ```
+   Troque `[YOUR-PASSWORD]` pela senha (sem os colchetes).
+   ⚠️ Use a do **Session pooler**, não a "Direct connection": a direta só funciona com IPv6,
+   e o Render grátis não tem IPv6.
 
 ### Passo 3: publicar no Render
 1. Crie a conta em https://render.com (entre com o GitHub, não pede cartão).
 2. **New** > **Blueprint** > escolha o repositório. O Render lê o `render.yaml`.
 3. Preencha as variáveis:
-   - `DB_SERVER`: `nome.database.windows.net`
-   - `DB_NAME`: `Comparador`
-   - `DB_USER` e `DB_PASSWORD`: o usuário e senha do Azure
+   - `DATABASE_URL`: a string do Supabase do passo anterior (já com a senha)
    - `ML_ACCESS_TOKEN`: opcional, pode deixar vazio
 4. Clique em **Apply**. Em alguns minutos o site fica no ar em
    `https://precocerto.onrender.com` (ou nome parecido).
@@ -92,8 +90,9 @@ A cada `git push` no GitHub, o Render publica a nova versão sozinho.
 ### O que esperar do plano grátis
 - **O site "dorme"** depois de 15 minutos sem visitas. A primeira visita depois disso
   demora de 30 a 60 segundos para abrir.
-- **O banco também pausa** depois de um tempo parado; a primeira consulta pode demorar
-  alguns segundos (o código já espera até 30 s).
+- **O Supabase pausa o projeto** depois de 7 dias sem nenhum uso do banco. Se acontecer,
+  entre no painel do Supabase e clique em **Restore project**. Enquanto o site for usado
+  (cada busca grava no banco), ele não pausa.
 - **Algumas lojas bloqueiam servidores na nuvem**: Amazon e Terabyte costumam bloquear
   acessos vindos de datacenter. No site publicado, é normal essas lojas voltarem com 0
   produtos mesmo funcionando no seu PC.
@@ -105,8 +104,7 @@ A cada `git push` no GitHub, o Render publica a nova versão sozinho.
 
 | Variável | Para quê |
 |----------|----------|
-| `DB_SERVER`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | conexão com o Azure SQL (modo nuvem) |
-| `COMPARADOR_DB` | string de conexão ODBC personalizada (modo local) |
+| `DATABASE_URL` | conexão com o PostgreSQL (string do Supabase, Session pooler) |
 | `ML_ACCESS_TOKEN` | usa a API oficial do Mercado Livre (crie um app em developers.mercadolivre.com.br) |
 
 ## Rotas da API

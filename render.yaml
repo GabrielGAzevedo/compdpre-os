@@ -12,13 +12,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
-      - key: DB_SERVER        # ex.: meuservidor.database.windows.net
-        sync: false
-      - key: DB_NAME          # ex.: Comparador
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
+      - key: DATABASE_URL     # string do Supabase (Connect > Session pooler)
         sync: false
       - key: ML_ACCESS_TOKEN  # opcional (API do Mercado Livre)
         sync: false

@@ -1,68 +1,55 @@
 -- =============================================================
--- Tabelas do Comparador de Preços
--- Funciona no SQL Server local e no Azure SQL Database.
+-- Tabelas do Comparador de Preços (PostgreSQL / Supabase)
 --
--- LOCAL (SSMS): crie o banco antes e selecione-o:
---     CREATE DATABASE Comparador;
---     GO
---     USE Comparador;
---
--- AZURE: o banco é criado pelo portal. Abra o "Editor de consultas"
--- do banco (ou conecte pelo SSMS) e rode só este script.
+-- No Supabase: menu "SQL Editor" > "New query", cole este arquivo
+-- inteiro e clique em "Run".
 --
 -- Pode rodar mais de uma vez: o que já existe é mantido.
 -- =============================================================
 
-IF OBJECT_ID('Loja') IS NULL
-CREATE TABLE Loja (
-    Id   INT IDENTITY PRIMARY KEY,
-    Nome NVARCHAR(50) NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS loja (
+    id   SERIAL PRIMARY KEY,
+    nome VARCHAR(50) NOT NULL UNIQUE
 );
 
-IF OBJECT_ID('Produto') IS NULL
-CREATE TABLE Produto (
-    Id       INT IDENTITY PRIMARY KEY,
-    Nome     NVARCHAR(300) NOT NULL,
-    CriadoEm DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+CREATE TABLE IF NOT EXISTS produto (
+    id        SERIAL PRIMARY KEY,
+    nome      VARCHAR(300) NOT NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Como o produto aparece em cada loja (nome e link de lá)
-IF OBJECT_ID('Oferta') IS NULL
-CREATE TABLE Oferta (
-    Id         INT IDENTITY PRIMARY KEY,
-    ProdutoId  INT NOT NULL REFERENCES Produto(Id),
-    LojaId     INT NOT NULL REFERENCES Loja(Id),
-    NomeNaLoja NVARCHAR(300) NOT NULL,
-    Url        NVARCHAR(500) NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS oferta (
+    id           SERIAL PRIMARY KEY,
+    produto_id   INT NOT NULL REFERENCES produto(id),
+    loja_id      INT NOT NULL REFERENCES loja(id),
+    nome_na_loja VARCHAR(300) NOT NULL,
+    url          VARCHAR(500) NOT NULL UNIQUE
 );
 
 -- Histórico: cada busca grava um novo preço
-IF OBJECT_ID('Preco') IS NULL
-BEGIN
-    CREATE TABLE Preco (
-        Id         BIGINT IDENTITY PRIMARY KEY,
-        OfertaId   INT NOT NULL REFERENCES Oferta(Id),
-        Valor      DECIMAL(10, 2) NOT NULL,
-        ColetadoEm DATETIME2 NOT NULL DEFAULT SYSDATETIME()
-    );
-    CREATE INDEX IX_Preco_Oferta_Data ON Preco (OfertaId, ColetadoEm DESC);
-END
-GO
+CREATE TABLE IF NOT EXISTS preco (
+    id          BIGSERIAL PRIMARY KEY,
+    oferta_id   INT NOT NULL REFERENCES oferta(id),
+    valor       NUMERIC(10, 2) NOT NULL,
+    coletado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_preco_oferta_data ON preco (oferta_id, coletado_em DESC);
 
 -- Último preço coletado de cada oferta
-CREATE OR ALTER VIEW vw_PrecoAtual AS
-SELECT OfertaId, Valor, ColetadoEm
-FROM (
-    SELECT OfertaId, Valor, ColetadoEm,
-           ROW_NUMBER() OVER (PARTITION BY OfertaId
-                              ORDER BY ColetadoEm DESC, Id DESC) AS Ordem
-    FROM Preco
-) x
-WHERE Ordem = 1;
-GO
+CREATE OR REPLACE VIEW vw_preco_atual WITH (security_invoker = true) AS
+SELECT DISTINCT ON (oferta_id) oferta_id, valor, coletado_em
+FROM preco
+ORDER BY oferta_id, coletado_em DESC, id DESC;
 
-INSERT INTO Loja (Nome)
-SELECT Nome FROM (VALUES ('Amazon'), ('Kabum'), ('Mercado Livre'),
-                         ('Pichau'), ('Terabyte'), ('Magalu')) AS v(Nome)
-WHERE Nome NOT IN (SELECT Nome FROM Loja);
-GO
+-- O Supabase também expõe as tabelas numa API pública. Ligar o RLS sem
+-- nenhuma regra bloqueia esse acesso; o site continua funcionando porque
+-- conecta direto no banco como dono das tabelas.
+ALTER TABLE loja    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE produto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE oferta  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE preco   ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO loja (nome)
+VALUES ('Amazon'), ('Kabum'), ('Mercado Livre'), ('Pichau'), ('Terabyte'), ('Magalu')
+ON CONFLICT (nome) DO NOTHING;
