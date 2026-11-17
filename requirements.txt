@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+rapidfuzz
+fastapi
+uvicorn
+pymssql
+# No seu PC (SQL Server Express com login do Windows) instale também:
+#   pip install pyodbc

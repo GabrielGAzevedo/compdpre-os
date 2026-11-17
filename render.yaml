@@ -1,0 +1,24 @@
+# Configuração do Render (Blueprint).
+# No painel do Render: New > Blueprint > escolha este repositório.
+# Os valores marcados com "sync: false" são pedidos na hora de criar.
+services:
+  - type: web
+    name: precocerto
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/saude
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DB_SERVER        # ex.: meuservidor.database.windows.net
+        sync: false
+      - key: DB_NAME          # ex.: Comparador
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: ML_ACCESS_TOKEN  # opcional (API do Mercado Livre)
+        sync: false
