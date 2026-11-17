@@ -91,16 +91,22 @@ def baixar_html(url: str) -> str | None:
     chave = os.getenv("SCRAPER_API_KEY", "").strip()
     try:
         if chave:
-            resp = requests.get(
-                "https://api.scraperapi.com/",
-                params={"api_key": chave, "url": url, "country_code": "br"},
-                timeout=70,  # o ScraperAPI pode levar até 60 s tentando
-            )
+            def via_scraperapi(**extras):
+                return requests.get(
+                    "https://api.scraperapi.com/",
+                    params={"api_key": chave, "url": url, **extras},
+                    timeout=70,  # o ScraperAPI pode levar até 60 s tentando
+                )
+            resp = via_scraperapi(country_code="br")
+            if resp.status_code == 403:  # plano sem acesso a IPs do Brasil
+                print(f"  [aviso] ScraperAPI recusou country_code=br: {resp.text[:150]!r}")
+                resp = via_scraperapi()
         else:
             resp = requests.get(url, headers=HEADERS, timeout=15)
         if resp.status_code != 200:
             origem = "ScraperAPI" if chave else "loja"
-            print(f"  [aviso] {url} respondeu {resp.status_code} ({origem})")
+            motivo = f": {resp.text[:150]!r}" if chave else ""
+            print(f"  [aviso] {url} respondeu {resp.status_code} ({origem}){motivo}")
             return None
         return resp.text
     except requests.RequestException as erro:
@@ -300,6 +306,9 @@ def buscar_mercadolivre(termo: str) -> list[Produto]:
             print(f"  [erro] API do Mercado Livre: {erro}")
 
     html = baixar_html(f"https://lista.mercadolivre.com.br/{quote(termo.replace(' ', '-'))}")
+    if html and "account-verification" in html and "poly-card" not in html:
+        print("  [aviso] Mercado Livre pediu verificação (bloqueio anti-bot).")
+        return []
     return parse_mercadolivre(html) if html else []
 
 
