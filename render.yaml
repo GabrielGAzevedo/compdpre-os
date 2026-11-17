@@ -13,6 +13,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      - key: PYTHONUNBUFFERED # mostra os avisos (print) nos logs na hora
+        value: "1"
       - key: DATABASE_URL     # string do Supabase (Connect > Session pooler)
         sync: false
       - key: ML_ACCESS_TOKEN  # opcional (API do Mercado Livre)
