@@ -16,6 +16,7 @@ nas lojas é feita pelo seu PC (coletar.ps1).
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
@@ -27,12 +28,26 @@ import db
 # Sem banco configurado o site funciona normalmente, só não guarda histórico
 BANCO_ATIVO = db.configurado()
 BUSCA_NAS_LOJAS = os.getenv("BUSCA_NAS_LOJAS", "1") != "0"
+AMAZON_TAG = os.getenv("AMAZON_TAG", "").strip()  # ID de rastreamento do Associados
+
+
+def com_afiliado(url: str) -> str:
+    """Põe o ID de Associado (tag) nos links da Amazon."""
+    if not AMAZON_TAG:
+        return url
+    partes = urlsplit(url)
+    if not partes.hostname or not partes.hostname.endswith("amazon.com.br"):
+        return url
+    params = dict(parse_qsl(partes.query))
+    params["tag"] = AMAZON_TAG
+    return urlunsplit(partes._replace(query=urlencode(params)))
 
 app = FastAPI(title="Comparador de Preços")
 
 
 def montar_resultado(produto_id, nome, ofertas, similaridade=None):
-    ofertas = sorted(ofertas, key=lambda o: o["preco"])
+    ofertas = sorted(({**o, "url": com_afiliado(o["url"])} for o in ofertas),
+                     key=lambda o: o["preco"])
     return {
         "id": produto_id,
         "nome": nome,

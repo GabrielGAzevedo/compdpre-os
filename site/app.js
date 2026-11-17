@@ -78,7 +78,7 @@ function criarCard(produto) {
       <li class="oferta ${melhor ? "oferta--melhor" : ""}">
         <span class="loja loja--${classeLoja(o.loja)}">${escapar(o.loja)}${minimo}</span>
         <span class="preco">${moeda(o.preco)}</span>
-        <a class="btn btn--comprar" href="${linkSeguro(o.url)}" target="_blank" rel="noopener noreferrer">
+        <a class="btn btn--comprar" href="${linkSeguro(o.url)}" target="_blank" rel="sponsored noopener noreferrer">
           Comprar
         </a>
       </li>`;
