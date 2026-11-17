@@ -17,5 +17,7 @@ services:
         value: "1"
       - key: DATABASE_URL     # string do Supabase (Connect > Session pooler)
         sync: false
+      - key: SCRAPER_API_KEY  # scraperapi.com: evita o bloqueio das lojas
+        sync: false
       - key: ML_ACCESS_TOKEN  # opcional (API do Mercado Livre)
         sync: false

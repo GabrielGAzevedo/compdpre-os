@@ -93,9 +93,9 @@ A cada `git push` no GitHub, o Render publica a nova versão sozinho.
 - **O Supabase pausa o projeto** depois de 7 dias sem nenhum uso do banco. Se acontecer,
   entre no painel do Supabase e clique em **Restore project**. Enquanto o site for usado
   (cada busca grava no banco), ele não pausa.
-- **Algumas lojas bloqueiam servidores na nuvem**: Amazon e Terabyte costumam bloquear
-  acessos vindos de datacenter. No site publicado, é normal essas lojas voltarem com 0
-  produtos mesmo funcionando no seu PC.
+- **As lojas bloqueiam servidores na nuvem** (erro 403 nos logs do Render). Por isso, no
+  Render, defina `SCRAPER_API_KEY` com uma chave grátis do https://www.scraperapi.com
+  (~1.000 páginas por mês; cada loja numa busca gasta uma).
 - Sem banco configurado o site continua funcionando: só a parte de histórico fica vazia.
 
 ---
@@ -105,6 +105,7 @@ A cada `git push` no GitHub, o Render publica a nova versão sozinho.
 | Variável | Para quê |
 |----------|----------|
 | `DATABASE_URL` | conexão com o PostgreSQL (string do Supabase, Session pooler) |
+| `SCRAPER_API_KEY` | chave do scraperapi.com; as buscas passam por ele (necessário no Render, onde as lojas bloqueiam o acesso) |
 | `ML_ACCESS_TOKEN` | usa a API oficial do Mercado Livre (crie um app em developers.mercadolivre.com.br) |
 
 ## Rotas da API

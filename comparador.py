@@ -17,6 +17,8 @@ Observações:
 - Mercado Livre: se você criar um app em developers.mercadolivre.com.br e
   definir a variável de ambiente ML_ACCESS_TOKEN, o script usa a API oficial.
   Sem o token, ele lê a página de busca.
+- Servidores na nuvem (Render etc.) costumam ser bloqueados pelas lojas.
+  Definindo SCRAPER_API_KEY (scraperapi.com), as páginas passam pelo ScraperAPI.
 - Para adicionar uma loja nova: escreva uma função buscar_xxx(termo) que
   devolve uma lista de Produto e registre-a no dicionário LOJAS (no fim).
 """
@@ -84,10 +86,21 @@ def texto_para_preco(texto) -> float | None:
 
 
 def baixar_html(url: str) -> str | None:
+    """Baixa a página. Se SCRAPER_API_KEY estiver definida, passa pelo ScraperAPI,
+    que acessa a loja por IPs residenciais (as lojas bloqueiam servidores na nuvem)."""
+    chave = os.getenv("SCRAPER_API_KEY", "").strip()
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
+        if chave:
+            resp = requests.get(
+                "https://api.scraperapi.com/",
+                params={"api_key": chave, "url": url, "country_code": "br"},
+                timeout=70,  # o ScraperAPI pode levar até 60 s tentando
+            )
+        else:
+            resp = requests.get(url, headers=HEADERS, timeout=15)
         if resp.status_code != 200:
-            print(f"  [aviso] {url} respondeu {resp.status_code}")
+            origem = "ScraperAPI" if chave else "loja"
+            print(f"  [aviso] {url} respondeu {resp.status_code} ({origem})")
             return None
         return resp.text
     except requests.RequestException as erro:
