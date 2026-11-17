@@ -13,6 +13,7 @@ comparador/
 ├── render.yaml      # configuração para publicar no Render
 ├── coletar.ps1      # coleta os preços de termos.txt pelo seu PC
 ├── termos.txt       # produtos acompanhados (um por linha)
+├── tests/           # testes dos leitores de cada loja + páginas de exemplo
 ├── requirements.txt
 └── site/            # index.html, style.css, app.js
 ```
@@ -107,6 +108,10 @@ site procura só nos produtos **já salvos no banco**. Quem vai às lojas é o s
    Por padrão busca na Amazon e na Kabum (as que respondem de um PC comum).
    Para escolher: `... -File .\coletar.ps1 -Lojas kabum` ou `-Lojas amazon,kabum,pichau`.
 
+Se uma loja voltar 0 produtos em 3 termos seguidos, aparece um **AVISO** em amarelo
+(ela provavelmente bloqueou ou mudou a página), e no fim sai um resumo por loja. Para mudar
+o limite: `-AvisarApos 5`.
+
 Cada vez que rodar, um novo preço entra no histórico. Para coletar todo dia sozinho, crie
 uma tarefa no **Agendador de Tarefas** do Windows que execute o comando acima.
 
@@ -121,6 +126,20 @@ uma tarefa no **Agendador de Tarefas** do Windows que execute o comando acima.
   seu PC (passo 4). Mesmo de um PC comum, Pichau, Terabyte, Magalu e Mercado Livre
   costumam bloquear; Amazon e Kabum funcionam.
 - Sem banco configurado o site continua funcionando: só a parte de histórico fica vazia.
+
+---
+
+## Testes
+Cada loja tem uma página de busca salva em `tests/fixtures/`, e os testes conferem se o
+leitor ainda acha produtos nela (não acessa a internet):
+```
+python -m unittest discover tests -v
+```
+- **Teste falhou:** uma mudança no `comparador.py` quebrou a leitura.
+- **Testes passam, mas a coleta volta 0 produtos:** a loja bloqueou ou mudou a página. Rode
+  no PC `python tests/atualizar_fixtures.py`: ele baixa a busca de cada loja e diz se veio
+  bloqueio ("sem resposta") ou layout novo ("o leitor achou 0 produtos"). Quando a loja
+  responde com produtos, a página real substitui a de exemplo.
 
 ---
 
