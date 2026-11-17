@@ -38,6 +38,8 @@ comparador/
 
 Sem `DATABASE_URL` o site funciona normalmente, só a parte de histórico fica vazia.
 
+Testes do leitor da Pichau (não acessam a internet): `python -m unittest discover testes`
+
 No terminal também funciona:
 ```
 python comparador.py "ssd 1tb"
@@ -104,8 +106,8 @@ site procura só nos produtos **já salvos no banco**. Quem vai às lojas é o s
    ```
    powershell -ExecutionPolicy Bypass -File .\coletar.ps1
    ```
-   Por padrão busca na Amazon e na Kabum (as que respondem de um PC comum).
-   Para escolher: `... -File .\coletar.ps1 -Lojas kabum` ou `-Lojas amazon,kabum,pichau`.
+   Por padrão busca na Amazon, na Kabum e na Pichau.
+   Para escolher: `... -File .\coletar.ps1 -Lojas kabum` ou `-Lojas amazon,kabum`.
 
 Cada vez que rodar, um novo preço entra no histórico. Para coletar todo dia sozinho, crie
 uma tarefa no **Agendador de Tarefas** do Windows que execute o comando acima.
@@ -118,8 +120,9 @@ uma tarefa no **Agendador de Tarefas** do Windows que execute o comando acima.
   (cada busca grava no banco), ele não pausa.
 - **As lojas bloqueiam servidores na nuvem** (erro 403 nos logs do Render), e o plano
   grátis do ScraperAPI também não passou pela proteção delas. Por isso a coleta roda no
-  seu PC (passo 4). Mesmo de um PC comum, Pichau, Terabyte, Magalu e Mercado Livre
-  costumam bloquear; Amazon e Kabum funcionam.
+  seu PC (passo 4). As páginas são baixadas com `curl_cffi` imitando o Chrome, o que
+  passa pela proteção Cloudflare da Pichau. Terabyte, Magalu e Mercado Livre ainda
+  costumam bloquear.
 - Sem banco configurado o site continua funcionando: só a parte de histórico fica vazia.
 
 ---

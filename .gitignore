@@ -5,3 +5,4 @@ venv/
 .env
 *.log
 .vscode/
+pichau_debug.html

@@ -9,7 +9,7 @@ Uso no terminal:
     python comparador.py "ssd kingston 1tb" --lojas amazon,kabum,pichau
 
 Dependências:
-    pip install requests beautifulsoup4 rapidfuzz
+    pip install requests curl_cffi beautifulsoup4 rapidfuzz
 
 Observações:
 - A maioria das lojas não tem API pública aberta, então o script lê as
@@ -18,6 +18,9 @@ Observações:
 - Mercado Livre: se você criar um app em developers.mercadolivre.com.br e
   definir a variável de ambiente ML_ACCESS_TOKEN, o script usa a API oficial.
   Sem o token, ele lê a página de busca.
+- As páginas são baixadas com curl_cffi imitando o Chrome (inclusive a
+  "impressão digital" TLS), o que passa pela proteção Cloudflare de lojas
+  como a Pichau. Sem curl_cffi instalado, cai para o requests comum.
 - Servidores na nuvem (Render etc.) costumam ser bloqueados pelas lojas.
   Definindo SCRAPER_API_KEY (scraperapi.com), as páginas passam pelo ScraperAPI.
 - Para adicionar uma loja nova: escreva uma função buscar_xxx(termo) que
@@ -36,6 +39,11 @@ from urllib.parse import quote, quote_plus, urljoin
 
 import requests
 from bs4 import BeautifulSoup
+
+try:  # curl_cffi imita o Chrome por completo (TLS/HTTP2), não só o User-Agent
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
 
 try:
     from rapidfuzz import fuzz
@@ -56,6 +64,11 @@ HEADERS = {
     ),
     "Accept-Language": "pt-BR,pt;q=0.9",
 }
+# Com curl_cffi o User-Agent e os demais cabeçalhos vêm do Chrome imitado;
+# mandar outro User-Agent criaria uma combinação "estranha" que denuncia o robô.
+HEADERS_CURL = {"Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"}
+ERROS_REDE = (requests.RequestException,) + (
+    (curl_requests.RequestsError,) if curl_requests else ())
 LIMITE_POR_LOJA = 10
 
 
@@ -88,6 +101,29 @@ def texto_para_preco(texto) -> float | None:
         return None
 
 
+def _get_como_chrome(url: str, **extras):
+    """GET direto na loja. Com curl_cffi, a conexão fica igual à de um Chrome
+    de verdade; é isso que a proteção Cloudflare (Pichau) olha."""
+    if curl_requests:
+        return curl_requests.get(url, headers=HEADERS_CURL, impersonate="chrome",
+                                 timeout=20, **extras)
+    return requests.get(url, headers=HEADERS, timeout=15, **extras)
+
+
+def parece_bloqueio(html: str | None) -> bool:
+    """True se a página é a tela de desafio da Cloudflare, não a da loja."""
+    if not html:
+        return False
+    if "url_key" in html or "s-search-result" in html:
+        return False  # veio a página de verdade, com produtos
+    trecho = html[:20000]
+    # (não usar "challenge-platform": a Cloudflare põe esse script até em
+    # páginas normais)
+    return any(marca in trecho for marca in (
+        "cf_chl_opt", "cf-chl-", "Just a moment...", "Um momento…",
+        "Attention Required! | Cloudflare"))
+
+
 def baixar_html(url: str) -> str | None:
     """Baixa a página. Se SCRAPER_API_KEY estiver definida, passa pelo ScraperAPI,
     que acessa a loja por IPs residenciais (as lojas bloqueiam servidores na nuvem)."""
@@ -105,21 +141,24 @@ def baixar_html(url: str) -> str | None:
                 print(f"  [aviso] ScraperAPI recusou country_code=br: {resp.text[:150]!r}")
                 resp = via_scraperapi()
         else:
-            resp = requests.get(url, headers=HEADERS, timeout=15)
+            resp = _get_como_chrome(url)
             # 503/429 = "tente mais tarde": espera e tenta de novo (até 2 vezes)
             for espera in (8, 20):
                 if resp.status_code not in (429, 503):
                     break
                 print(f"  [aviso] {url} respondeu {resp.status_code}; nova tentativa em {espera} s")
                 time.sleep(espera)
-                resp = requests.get(url, headers=HEADERS, timeout=15)
+                resp = _get_como_chrome(url)
         if resp.status_code != 200:
+            if parece_bloqueio(resp.text):
+                print(f"  [aviso] {url} respondeu {resp.status_code}: desafio anti-robô (Cloudflare)")
+                return None
             origem = "ScraperAPI" if chave else "loja"
             motivo = f": {resp.text[:150]!r}" if chave else ""
             print(f"  [aviso] {url} respondeu {resp.status_code} ({origem}){motivo}")
             return None
         return resp.text
-    except requests.RequestException as erro:
+    except ERROS_REDE as erro:
         print(f"  [erro] falha ao acessar {url}: {erro}")
         return None
 
@@ -345,20 +384,137 @@ def parse_mercadolivre(html: str) -> list[Produto]:
 
 
 # ==================================================================== Pichau
+# A Pichau é Next.js (app router) com catálogo Magento. A página de busca
+# não tem __NEXT_DATA__: os produtos vêm no "flight" do React, em blocos
+# self.__next_f.push([1,"..."]) com o JSON escapado dentro de uma string.
+# Cada produto é um objeto com name, url_key, stock_status e
+# pichau_prices {avista (PIX), final_price (cartão), base_price, ...}.
+PICHAU_BASE = "https://www.pichau.com.br"
+_PICHAU_FLIGHT = re.compile(r'self\.__next_f\.push\(\[1,\s*"((?:[^"\\]|\\.)*)"\]\)', re.DOTALL)
+_PICHAU_URL_KEY = re.compile(r'"url_key"\s*:\s*"')
+
+
+def _pichau_flight(html: str) -> str:
+    """Junta e desescapa os pedaços do flight do Next.js."""
+    pedacos = []
+    for m in _PICHAU_FLIGHT.finditer(html):
+        try:
+            pedacos.append(json.loads(f'"{m.group(1)}"'))
+        except json.JSONDecodeError:
+            continue
+    return "".join(pedacos)
+
+
+def _pichau_objetos(texto: str) -> list[dict]:
+    """Acha os objetos JSON que têm "url_key" no primeiro nível.
+
+    Para cada "url_key" no texto, volta procurando a "{" que abre o objeto e
+    tenta decodificar dali (raw_decode lê só um objeto e ignora o resto).
+    """
+    decodificador = json.JSONDecoder()
+    objetos, inicio_usado = [], set()
+    for m in _PICHAU_URL_KEY.finditer(texto):
+        pos, tentativas = m.start(), 0
+        while tentativas < 80:
+            pos = texto.rfind("{", max(0, m.start() - 20000), pos)
+            if pos < 0:
+                break
+            tentativas += 1
+            if pos in inicio_usado:
+                break
+            try:
+                obj, fim = decodificador.raw_decode(texto, pos)
+            except json.JSONDecodeError:
+                continue
+            if fim > m.start() and isinstance(obj, dict) and "url_key" in obj:
+                inicio_usado.add(pos)
+                objetos.append(obj)
+                break
+    return objetos
+
+
+def _pichau_produto(obj: dict) -> Produto | None:
+    nome, url_key = obj.get("name"), obj.get("url_key")
+    if not (isinstance(nome, str) and isinstance(url_key, str) and url_key):
+        return None
+    if str(obj.get("stock_status", "")).upper() == "OUT_OF_STOCK":
+        return None  # esgotado: não entra na comparação
+    precos = obj.get("pichau_prices") or {}
+    # Preço à vista (PIX), como fazemos com a Kabum (priceWithDiscount);
+    # sem ele, o preço no cartão.
+    preco = (texto_para_preco(precos.get("avista"))
+             or texto_para_preco(precos.get("final_price"))
+             or texto_para_preco(obj.get("special_price"))
+             or _achar_preco(obj.get("price_range")))
+    if not preco:
+        return None
+    return Produto("", nome.strip(), preco, f"{PICHAU_BASE}/{url_key.strip('/')}")
+
+
 def parse_pichau(html: str) -> list[Produto]:
-    base = "https://www.pichau.com.br"
-    soup = BeautifulSoup(html, "html.parser")
-    produtos = produtos_embutidos(soup, base)
+    produtos = []
+    # 1) flight do app router (layout atual); 2) HTML cru, caso o JSON venha
+    # sem escape; 3) __NEXT_DATA__ (layout antigo)
+    for texto in (_pichau_flight(html), html):
+        produtos = [p for p in map(_pichau_produto, _pichau_objetos(texto)) if p]
+        if produtos:
+            break
     if not produtos:
-        produtos = produtos_por_seletor(
-            soup, base, "a[data-cy='list-product'], a[href][class*='product']",
-            "h2, [class*='name']", "[class*='price_vista'], [class*='Price'], [class*='price']")
+        soup = BeautifulSoup(html, "html.parser")
+        produtos = produtos_embutidos(soup, PICHAU_BASE)
+        if not produtos:
+            produtos = produtos_por_seletor(
+                soup, PICHAU_BASE, "a[data-cy='list-product'], a[href][class*='product']",
+                "h2, [class*='name']", "[class*='price_vista'], [class*='Price'], [class*='price']")
     return finalizar(produtos, "Pichau")
 
 
+# Plano B: a mesma API GraphQL que o site da Pichau chama no navegador.
+PICHAU_GRAPHQL = """query busca($q: String!, $n: Int!) {
+  products(search: $q, pageSize: $n, currentPage: 1, sort: {relevance: DESC}) {
+    items { name url_key stock_status special_price
+            pichau_prices { avista final_price } }
+  }
+}"""
+
+
+def buscar_pichau_api(termo: str) -> list[Produto]:
+    if not curl_requests:
+        return []
+    try:
+        resp = curl_requests.get(
+            f"{PICHAU_BASE}/api/catalog",
+            params={"query": PICHAU_GRAPHQL, "operationName": "busca",
+                    "variables": json.dumps({"q": termo, "n": 30})},
+            headers={**HEADERS_CURL, "Accept": "application/json", "vendor": "Pichau",
+                     "Referer": f"{PICHAU_BASE}/search?q={quote_plus(termo)}"},
+            impersonate="chrome", timeout=20)
+        if resp.status_code != 200:
+            print(f"  [aviso] API da Pichau respondeu {resp.status_code}")
+            return []
+        itens = (((resp.json() or {}).get("data") or {}).get("products") or {}).get("items") or []
+    except (ValueError, *ERROS_REDE) as erro:
+        print(f"  [erro] API da Pichau: {erro}")
+        return []
+    return finalizar([p for p in map(_pichau_produto, itens) if p], "Pichau")
+
+
 def buscar_pichau(termo: str) -> list[Produto]:
-    html = baixar_html(f"https://www.pichau.com.br/search?q={quote_plus(termo)}")
-    return parse_pichau(html) if html else []
+    html = baixar_html(f"{PICHAU_BASE}/search?q={quote_plus(termo)}")
+    if html and parece_bloqueio(html):
+        print("  [aviso] Pichau mostrou o desafio anti-robô (Cloudflare).")
+        html = None
+    produtos = parse_pichau(html) if html else []
+    if html and not produtos:
+        # Página chegou mas o leitor não achou nada: o layout pode ter mudado.
+        # Guarda a página para dar para ver o que veio.
+        arquivo = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pichau_debug.html")
+        with open(arquivo, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"  [aviso] Pichau: página sem produtos reconhecíveis (salva em {arquivo})")
+    if not produtos:
+        produtos = buscar_pichau_api(termo)
+    return produtos
 
 
 # ================================================================== Terabyte
