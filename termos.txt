@@ -95,12 +95,70 @@ fone jbl wave buds
 caixa de som jbl go 4
 caixa de som jbl flip 6
 
-# ------------------------------------------------------------- monitor
+# ---------------------------------------------------- monitores por tamanho
+# (cada busca traz até 10 monitores daquele tamanho)
+monitor portatil 15.6
+monitor portatil 16
+monitor 17
+monitor 18.5
+monitor 19
+monitor 19.5
+monitor 20
+monitor 21.5
+monitor 21.5 75hz
+monitor 22
+monitor 23
+monitor 23.8
+monitor 23.8 ips
+monitor 23.8 gamer
+monitor 24
+monitor 24 ips
+monitor gamer 24 144hz
+monitor gamer 24 165hz
+monitor gamer 24 180hz
+monitor gamer 24 240hz
+monitor 25
+monitor gamer 25 240hz
+monitor 27
+monitor 27 ips
+monitor 27 4k
+monitor 27 qhd
+monitor gamer 27 144hz
+monitor gamer 27 165hz
+monitor gamer 27 180hz
+monitor gamer 27 240hz
+monitor gamer 27 oled
+monitor 28 4k
+monitor 29 ultrawide
+monitor 30 ultrawide
+monitor 31.5
+monitor 32
+monitor 32 4k
+monitor gamer 32 curvo
+monitor gamer 32 165hz
+monitor 34 ultrawide
+monitor gamer 34 curvo
+monitor 38 ultrawide
+monitor 39 oled
+monitor 40 ultrawide
+monitor 42 oled
+monitor 43 4k
+monitor 45 oled
+monitor 49 super ultrawide
+monitor 57 odyssey neo g9
+
+# ------------------------------------------------- monitores mais vendidos
 monitor lg ultragear 24 144hz
 monitor samsung odyssey g3 24
 monitor aoc hero 24g2
 monitor lg 27 ultragear 180hz
 monitor samsung 24 t350
+monitor samsung odyssey g5 27
+monitor lg 29 ultrawide
+monitor dell 24 se2425h
+monitor philips 24 241v8
+monitor aoc 27g15
+monitor asus tuf 27 vg279q
 
 # ---------------------------------------------- rede, webcam e acessórios
 roteador tp-link archer c6
