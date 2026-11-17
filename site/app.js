@@ -62,9 +62,12 @@ async function pegarJson(url) {
 // --------------------------------------------------------------- cards
 function criarCard(produto) {
   const temEconomia = produto.economia > 0.009;
-  const selo = temEconomia
-    ? `<span class="selo">Economize ${moeda(produto.economia)}</span>`
-    : `<span class="selo selo--igual">Mesmo preço</span>`;
+  const umaLoja = produto.ofertas.length === 1;
+  const selo = umaLoja
+    ? `<span class="selo selo--igual">Só na ${escapar(produto.ofertas[0].loja)}</span>`
+    : temEconomia
+      ? `<span class="selo">Economize ${moeda(produto.economia)}</span>`
+      : `<span class="selo selo--igual">Mesmo preço</span>`;
   const similar = produto.similaridade ? `<span class="similar">${produto.similaridade}% de correspondência</span>` : "";
 
   const ofertas = produto.ofertas.map((o, i) => {
@@ -91,7 +94,7 @@ function criarCard(produto) {
       <h3 class="card__titulo" title="${escapar(produto.nome)}">${escapar(produto.nome)}</h3>
       <ul class="ofertas">${ofertas}</ul>
       <div class="card__rodape">
-        <span class="minimo">Melhor preço: <strong>${escapar(produto.melhorLoja)}</strong></span>
+        <span class="minimo">${umaLoja ? "Loja" : "Melhor preço"}: <strong>${escapar(produto.melhorLoja)}</strong></span>
         ${historico}
       </div>
     </article>`;

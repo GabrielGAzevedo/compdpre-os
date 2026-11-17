@@ -92,9 +92,7 @@ def buscar_no_historico(q: str, chaves: list[str]):
         raise HTTPException(503, "Banco indisponível no momento. Tente de novo em instantes.")
 
     resultados, encontrados = [], {}
-    for p in produtos:
-        if len(p["ofertas"]) < 2:  # comparação precisa de duas lojas
-            continue
+    for p in produtos:  # inclui produtos vistos numa loja só (histórico)
         for o in p["ofertas"]:
             encontrados[o["loja"]] = encontrados.get(o["loja"], 0) + 1
         resultados.append(montar_resultado(p["id"], p["nome"], p["ofertas"]))

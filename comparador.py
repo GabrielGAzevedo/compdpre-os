@@ -27,6 +27,8 @@ import json
 import os
 import re
 import sys
+import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from urllib.parse import quote, quote_plus, urljoin
@@ -103,6 +105,13 @@ def baixar_html(url: str) -> str | None:
                 resp = via_scraperapi()
         else:
             resp = requests.get(url, headers=HEADERS, timeout=15)
+            # 503/429 = "tente mais tarde": espera e tenta de novo (até 2 vezes)
+            for espera in (8, 20):
+                if resp.status_code not in (429, 503):
+                    break
+                print(f"  [aviso] {url} respondeu {resp.status_code}; nova tentativa em {espera} s")
+                time.sleep(espera)
+                resp = requests.get(url, headers=HEADERS, timeout=15)
         if resp.status_code != 200:
             origem = "ScraperAPI" if chave else "loja"
             motivo = f": {resp.text[:150]!r}" if chave else ""
@@ -441,11 +450,22 @@ def similaridade(a: str, b: str) -> float:
     return _texto_parecido(a.lower(), b.lower())
 
 
-def agrupar(por_loja: dict[str, list[Produto]], minimo: float = 70):
+def _normalizar(texto: str) -> str:
+    sem_acento = unicodedata.normalize("NFD", texto).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", " ", sem_acento.lower())
+
+
+def combina_com_termo(nome: str, termo: str) -> bool:
+    """True se todas as palavras da busca aparecem no nome do produto."""
+    palavras_nome = set(_normalizar(nome).split())
+    return all(p in palavras_nome for p in _normalizar(termo).split())
+
+
+def agrupar(por_loja: dict[str, list[Produto]], minimo: float = 70, minimo_lojas: int = 2):
     """Junta o mesmo produto de lojas diferentes.
 
     Retorna uma lista de (lista de Produto, nota mínima de similaridade),
-    só com grupos presentes em pelo menos 2 lojas.
+    só com grupos presentes em pelo menos `minimo_lojas` lojas.
     """
     grupos = []  # cada item: [produtos, nota]
     for produtos in por_loja.values():
@@ -467,7 +487,8 @@ def agrupar(por_loja: dict[str, list[Produto]], minimo: float = 70):
             if i not in usados:
                 grupos.append([[p], 100.0])
 
-    resultado = [(sorted(g, key=lambda p: p.preco), nota) for g, nota in grupos if len(g) >= 2]
+    resultado = [(sorted(g, key=lambda p: p.preco), nota) for g, nota in grupos
+                 if len(g) >= minimo_lojas]
     resultado.sort(key=lambda r: r[0][-1].preco - r[0][0].preco, reverse=True)
     return resultado
 
@@ -494,25 +515,32 @@ def main():
     grupos = agrupar(por_loja)
     if not grupos:
         print("\nNenhum produto equivalente encontrado em duas lojas ou mais.")
-        return
+    else:
+        print("\n" + "=" * 72)
+        for produtos, nota in grupos:
+            barato, caro = produtos[0], produtos[-1]
+            print(f"Produto: {barato.nome[:66]}")
+            for p in produtos:
+                marca = "  <- menor preço" if p is barato else ""
+                print(f"  {p.loja:<14}{moeda(p.preco):>14}  {p.url[:60]}{marca}")
+            print(f"  >> Economia de {moeda(caro.preco - barato.preco)}  [similaridade {nota:.0f}%]")
+            print("-" * 72)
 
-    print("\n" + "=" * 72)
-    for produtos, nota in grupos:
-        barato, caro = produtos[0], produtos[-1]
-        print(f"Produto: {barato.nome[:66]}")
-        for p in produtos:
-            marca = "  <- menor preço" if p is barato else ""
-            print(f"  {p.loja:<14}{moeda(p.preco):>14}  {p.url[:60]}{marca}")
-        print(f"  >> Economia de {moeda(caro.preco - barato.preco)}  [similaridade {nota:.0f}%]")
-        print("-" * 72)
-
+    # Para o histórico, guarda também o que só apareceu numa loja, desde que o
+    # nome tenha todas as palavras da busca (evita capinhas, cabos etc.)
+    para_salvar = [
+        produtos for produtos, _ in agrupar(por_loja, minimo_lojas=1)
+        if len(produtos) >= 2 or combina_com_termo(produtos[0].nome, termo)
+    ]
     try:  # salva o histórico no banco, se DATABASE_URL estiver definida
         import db
         if not db.configurado():
+            print(f"\n(sem DATABASE_URL: {len(para_salvar)} produto(s) seriam salvos)")
             return
-        for produtos, _ in grupos:
+        for produtos in para_salvar:
             db.salvar_grupo(produtos)
-        print(f"\n{len(grupos)} produto(s) salvos no banco.")
+        print(f"\n{len(para_salvar)} produto(s) salvos no banco "
+              f"({len(grupos)} em duas lojas ou mais).")
     except Exception as erro:
         print(f"\n[aviso] não foi possível salvar no banco: {erro}")
 
