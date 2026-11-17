@@ -237,7 +237,7 @@ function desenharGrafico(pontos) {
     const coords = lista.map((p) => `${x(new Date(p.data).getTime())},${y(p.preco)}`);
     svg += `<polyline points="${coords.join(" ")}" fill="none" stroke="${cor}" stroke-width="2.5" stroke-linejoin="round"/>`;
     lista.forEach((p) => {
-      svg += `<circle cx="${x(new Date(p.data).getTime())}" cy="${y(p.preco)}" r="4" fill="#fff" stroke="${cor}" stroke-width="2">
+      svg += `<circle cx="${x(new Date(p.data).getTime())}" cy="${y(p.preco)}" r="4" style="fill:var(--superficie)" stroke="${cor}" stroke-width="2">
                 <title>${loja}: ${moeda(p.preco)} em ${new Date(p.data).toLocaleString("pt-BR")}</title></circle>`;
     });
   }
