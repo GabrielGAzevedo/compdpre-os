@@ -1,6 +1,7 @@
-# PreçoCerto: comparador de preços
+# Preço Certo GGA: comparador de preços
 
-Compara o mesmo produto em Amazon, Kabum, Mercado Livre, Pichau, Terabyte e Magalu.
+Compara o mesmo produto em Amazon, Kabum e Pichau (Mercado Livre, Terabyte e Magalu estão
+no código, mas desativados no dicionário `LOJAS` do `comparador.py`).
 No site você marca quais lojas quer comparar (mínimo 2) e vê o histórico de preços.
 
 ```
@@ -104,7 +105,7 @@ site procura só nos produtos **já salvos no banco**. Quem vai às lojas é o s
    powershell -ExecutionPolicy Bypass -File .\coletar.ps1
    ```
    Por padrão busca na Amazon e na Kabum (as que respondem de um PC comum).
-   Para outras: `... -File .\coletar.ps1 -Lojas amazon,kabum,mercadolivre`.
+   Para escolher: `... -File .\coletar.ps1 -Lojas kabum` ou `-Lojas amazon,kabum,pichau`.
 
 Cada vez que rodar, um novo preço entra no histórico. Para coletar todo dia sozinho, crie
 uma tarefa no **Agendador de Tarefas** do Windows que execute o comando acima.

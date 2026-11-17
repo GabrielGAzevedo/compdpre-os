@@ -1,5 +1,5 @@
 // ===================================================================
-// PreçoCerto - front-end do comparador (JavaScript puro, sem framework)
+// Preço Certo GGA - front-end do comparador (JavaScript puro, sem framework)
 // ===================================================================
 
 const form = document.querySelector("#form-busca");

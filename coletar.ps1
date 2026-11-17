@@ -3,7 +3,8 @@
 #
 # Uso (PowerShell, nesta pasta):
 #     .\coletar.ps1
-#     .\coletar.ps1 -Lojas amazon,kabum,mercadolivre
+#     .\coletar.ps1 -Lojas kabum
+#     .\coletar.ps1 -Lojas amazon,kabum,pichau
 #
 # A string do banco fica no arquivo .env desta pasta, numa linha assim:
 #     DATABASE_URL=postgresql://postgres.xxxx:SENHA@aws-1-us-east-2.pooler.supabase.com:5432/postgres

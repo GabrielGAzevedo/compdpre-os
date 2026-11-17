@@ -1,7 +1,8 @@
 """
 Comparador de preços - várias lojas
 -----------------------------------
-Lojas: Amazon, Kabum, Mercado Livre, Pichau, Terabyte e Magalu.
+Lojas ativas: Amazon, Kabum e Pichau (Mercado Livre, Terabyte e Magalu
+estão prontas no código, mas desativadas no dicionário LOJAS).
 
 Uso no terminal:
     python comparador.py "ssd kingston 1tb"
@@ -401,13 +402,15 @@ def buscar_magalu(termo: str) -> list[Produto]:
 
 # ============================================================ registro de lojas
 # chave (usada na API/site) -> (nome exibido, função de busca)
+# Por enquanto só Amazon, Kabum e Pichau. Para reativar outra loja, basta
+# acrescentar a linha dela, por exemplo:
+#     "mercadolivre": ("Mercado Livre", buscar_mercadolivre),
+#     "terabyte": ("Terabyte", buscar_terabyte),
+#     "magalu": ("Magalu", buscar_magalu),
 LOJAS = {
     "amazon": ("Amazon", buscar_amazon),
     "kabum": ("Kabum", buscar_kabum),
-    "mercadolivre": ("Mercado Livre", buscar_mercadolivre),
     "pichau": ("Pichau", buscar_pichau),
-    "terabyte": ("Terabyte", buscar_terabyte),
-    "magalu": ("Magalu", buscar_magalu),
 }
 
 

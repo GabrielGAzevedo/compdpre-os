@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PreçoCerto · compare preços em 6 lojas de uma vez</title>
-  <meta name="description" content="Busque um eletrônico uma vez e veja o preço na Amazon, Kabum, Mercado Livre, Pichau, Terabyte e Magalu lado a lado, com histórico.">
+  <title>Preço Certo GGA · compare preços de eletrônicos com histórico</title>
+  <meta name="description" content="Veja o preço de eletrônicos na Amazon, Kabum e Pichau lado a lado, com o histórico de preço de cada produto.">
   <meta name="page-type" content="software">
   <meta name="site-kind" content="software">
   <meta name="theme-color" content="#f5f4ef">
-  <meta property="og:title" content="PreçoCerto · compare preços em 6 lojas de uma vez">
-  <meta property="og:description" content="Amazon, Kabum, Mercado Livre, Pichau, Terabyte e Magalu lado a lado.">
+  <meta property="og:title" content="Preço Certo GGA · compare preços de eletrônicos com histórico">
+  <meta property="og:description" content="Amazon, Kabum e Pichau lado a lado, com histórico de preços.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d6b5e'/%3E%3Cpath d='M9 17l5 5 9-12' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,9 +21,9 @@
 
   <header class="topo">
     <div class="wrap topo__conteudo">
-      <a href="/" class="logo" aria-label="PreçoCerto, início">
+      <a href="/" class="logo" aria-label="Preço Certo GGA, início">
         <svg class="logo__marca" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M9 17l5 5 9-12"/></svg>
-        <span>Preço<strong>Certo</strong></span>
+        <span>Preço <strong>Certo</strong> GGA</span>
       </a>
       <nav class="topo__nav" aria-label="Principal">
         <a href="#como-funciona">Como funciona</a>
@@ -37,11 +37,11 @@
     <section class="hero" id="busca" data-enter>
       <div class="wrap hero__grade">
         <div class="hero__texto">
-          <p class="hero__tag">6 lojas · 1 busca</p>
-          <h1>Ache o menor preço de eletrônicos em seis lojas de uma vez.</h1>
+          <p class="hero__tag">Preços com histórico</p>
+          <h1>Compare preços de eletrônicos e veja se hoje é uma boa hora de comprar.</h1>
           <p class="hero__sub">
-            Amazon, Kabum, Mercado Livre, Pichau, Terabyte e Magalu lado a lado,
-            com o histórico de preço de cada produto que você pesquisar.
+            Amazon, Kabum e Pichau lado a lado,
+            com o histórico de preço de cada produto acompanhado.
           </p>
 
           <form id="form-busca" class="busca" role="search">
@@ -70,7 +70,7 @@
         <div class="janela" aria-hidden="true">
           <div class="janela__barra">
             <span></span><span></span><span></span>
-            <p class="janela__url">precocerto · comparando 6 lojas</p>
+            <p class="janela__url">preço certo gga · comparando 3 lojas</p>
           </div>
           <div id="vitrine" class="janela__corpo">
             <article class="card card--demo">
@@ -79,10 +79,7 @@
               <ul class="ofertas">
                 <li class="oferta"><span class="loja loja--amazon">Amazon</span><i class="barra"></i></li>
                 <li class="oferta"><span class="loja loja--kabum">Kabum</span><i class="barra"></i></li>
-                <li class="oferta"><span class="loja loja--mercadolivre">Mercado Livre</span><i class="barra"></i></li>
                 <li class="oferta"><span class="loja loja--pichau">Pichau</span><i class="barra"></i></li>
-                <li class="oferta"><span class="loja loja--terabyte">Terabyte</span><i class="barra"></i></li>
-                <li class="oferta"><span class="loja loja--magalu">Magalu</span><i class="barra"></i></li>
               </ul>
             </article>
           </div>
@@ -106,7 +103,7 @@
       <div class="wrap">
         <div class="secao__cabecalho">
           <h2>Como a comparação funciona</h2>
-          <p class="status">Uma busca sai para todas as lojas marcadas ao mesmo tempo e volta como um card por produto.</p>
+          <p class="status">Os preços das lojas são coletados e o mesmo produto aparece num card só, com o menor preço em destaque.</p>
         </div>
 
         <div class="fluxo" aria-hidden="true">
@@ -114,39 +111,30 @@
             <defs>
               <linearGradient id="g-linha" x1="0" x2="1"><stop offset="0" stop-color="#2dd4bf" stop-opacity=".15"/><stop offset="1" stop-color="#2dd4bf" stop-opacity=".6"/></linearGradient>
             </defs>
-            <!-- linhas: busca -> motor -> 6 lojas -> resultado -->
-            <path class="fluxo__linha" d="M170 150 H330"/>
+            <!-- linhas: busca -> motor -> 3 lojas -> resultado -->
+            <path class="fluxo__linha" d="M170 150 H310"/>
             <g class="fluxo__ramos">
-              <path d="M450 150 C520 150 520 40 590 40"/>
-              <path d="M450 150 C520 150 520 84 590 84"/>
-              <path d="M450 150 C520 150 520 128 590 128"/>
-              <path d="M450 150 C520 150 520 172 590 172"/>
-              <path d="M450 150 C520 150 520 216 590 216"/>
-              <path d="M450 150 C520 150 520 260 590 260"/>
-              <path d="M720 40 C780 40 780 150 820 150"/>
+              <path d="M470 150 C530 150 530 84 590 84"/>
+              <path d="M470 150 H590"/>
+              <path d="M470 150 C530 150 530 216 590 216"/>
               <path d="M720 84 C780 84 780 150 820 150"/>
-              <path d="M720 128 C780 128 780 150 820 150"/>
-              <path d="M720 172 C780 172 780 150 820 150"/>
+              <path d="M720 150 H820"/>
               <path d="M720 216 C780 216 780 150 820 150"/>
-              <path d="M720 260 C780 260 780 150 820 150"/>
             </g>
             <g class="fluxo__pulsos">
-              <path class="p1" d="M170 150 H330"/>
-              <path class="p2" d="M450 150 C520 150 520 40 590 40"/>
-              <path class="p3" d="M450 150 C520 150 520 172 590 172"/>
-              <path class="p4" d="M450 150 C520 150 520 260 590 260"/>
-              <path class="p5" d="M720 128 C780 128 780 150 820 150"/>
+              <path class="p1" d="M170 150 H310"/>
+              <path class="p2" d="M470 150 C530 150 530 84 590 84"/>
+              <path class="p3" d="M470 150 H590"/>
+              <path class="p4" d="M470 150 C530 150 530 216 590 216"/>
+              <path class="p5" d="M720 84 C780 84 780 150 820 150"/>
               <path class="p6" d="M720 216 C780 216 780 150 820 150"/>
             </g>
 
             <g class="fluxo__no"><rect x="20" y="124" width="150" height="52" rx="26"/><text x="95" y="155">"ssd 1tb"</text></g>
-            <g class="fluxo__no fluxo__no--motor"><rect x="330" y="110" width="120" height="80" rx="16"/><text x="390" y="146">PreçoCerto</text><text x="390" y="166" class="fluxo__mini">busca paralela</text></g>
-            <g class="fluxo__loja" style="--c:#f59e0b"><rect x="590" y="24" width="130" height="32" rx="16"/><circle cx="610" cy="40" r="5"/><text x="626" y="45">Amazon</text></g>
-            <g class="fluxo__loja" style="--c:#60a5fa"><rect x="590" y="68" width="130" height="32" rx="16"/><circle cx="610" cy="84" r="5"/><text x="626" y="89">Kabum</text></g>
-            <g class="fluxo__loja" style="--c:#facc15"><rect x="590" y="112" width="130" height="32" rx="16"/><circle cx="610" cy="128" r="5"/><text x="626" y="133">Mercado Livre</text></g>
-            <g class="fluxo__loja" style="--c:#fb7185"><rect x="590" y="156" width="130" height="32" rx="16"/><circle cx="610" cy="172" r="5"/><text x="626" y="177">Pichau</text></g>
-            <g class="fluxo__loja" style="--c:#a3e635"><rect x="590" y="200" width="130" height="32" rx="16"/><circle cx="610" cy="216" r="5"/><text x="626" y="221">Terabyte</text></g>
-            <g class="fluxo__loja" style="--c:#38bdf8"><rect x="590" y="244" width="130" height="32" rx="16"/><circle cx="610" cy="260" r="5"/><text x="626" y="265">Magalu</text></g>
+            <g class="fluxo__no fluxo__no--motor"><rect x="310" y="110" width="160" height="80" rx="16"/><text x="390" y="146">Preço Certo GGA</text><text x="390" y="166" class="fluxo__mini">compara as lojas</text></g>
+            <g class="fluxo__loja" style="--c:#f59e0b"><rect x="590" y="68" width="130" height="32" rx="16"/><circle cx="610" cy="84" r="5"/><text x="626" y="89">Amazon</text></g>
+            <g class="fluxo__loja" style="--c:#60a5fa"><rect x="590" y="134" width="130" height="32" rx="16"/><circle cx="610" cy="150" r="5"/><text x="626" y="155">Kabum</text></g>
+            <g class="fluxo__loja" style="--c:#fb7185"><rect x="590" y="200" width="130" height="32" rx="16"/><circle cx="610" cy="216" r="5"/><text x="626" y="221">Pichau</text></g>
             <g class="fluxo__no fluxo__no--fim"><rect x="820" y="118" width="120" height="64" rx="16"/><text x="880" y="146">Menor</text><text x="880" y="166">preço</text></g>
           </svg>
         </div>
@@ -155,12 +143,11 @@
         <div class="fluxo-m" aria-hidden="true">
           <span class="fluxo-m__no">"ssd 1tb"</span>
           <span class="fluxo-m__seta"></span>
-          <span class="fluxo-m__no fluxo-m__no--motor">PreçoCerto · busca paralela</span>
+          <span class="fluxo-m__no fluxo-m__no--motor">Preço Certo GGA · compara as lojas</span>
           <span class="fluxo-m__seta"></span>
           <div class="fluxo-m__lojas">
             <span style="--c:#f59e0b">Amazon</span><span style="--c:#60a5fa">Kabum</span>
-            <span style="--c:#facc15">Mercado Livre</span><span style="--c:#fb7185">Pichau</span>
-            <span style="--c:#a3e635">Terabyte</span><span style="--c:#38bdf8">Magalu</span>
+            <span style="--c:#fb7185">Pichau</span>
           </div>
           <span class="fluxo-m__seta"></span>
           <span class="fluxo-m__no fluxo-m__no--fim">Menor preço</span>
@@ -168,8 +155,8 @@
 
         <ol class="passos">
           <li>
-            <h3>Busca em paralelo</h3>
-            <p>As lojas marcadas são consultadas ao mesmo tempo. Se uma sair do ar, as outras continuam.</p>
+            <h3>Coleta frequente</h3>
+            <p>Os produtos acompanhados têm o preço registrado periodicamente em cada loja.</p>
           </li>
           <li>
             <h3>Mesmo produto, mesma ficha</h3>
@@ -177,7 +164,7 @@
           </li>
           <li>
             <h3>Histórico salvo</h3>
-            <p>Cada busca grava o preço no banco. O gráfico mostra se o valor de hoje é bom ou só parece.</p>
+            <p>Cada coleta grava o preço no banco. O gráfico mostra se o valor de hoje é bom ou só parece.</p>
           </li>
         </ol>
       </div>
@@ -188,7 +175,7 @@
       <div class="wrap">
         <div class="secao__cabecalho">
           <h2>Produtos acompanhados</h2>
-          <p class="status">Tudo o que já foi pesquisado, com o preço mais recente de cada loja.</p>
+          <p class="status">Os produtos com preço coletado, com o valor mais recente de cada loja.</p>
         </div>
         <div id="lista-acompanhando" class="grade"></div>
       </div>
@@ -197,13 +184,13 @@
 
   <footer class="rodape">
     <div class="wrap rodape__conteudo">
-      <a href="/" class="logo logo--claro" aria-label="PreçoCerto, início">
+      <a href="/" class="logo logo--claro" aria-label="Preço Certo GGA, início">
         <svg class="logo__marca" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M9 17l5 5 9-12"/></svg>
-        <span>Preço<strong>Certo</strong></span>
+        <span>Preço <strong>Certo</strong> GGA</span>
       </a>
       <div class="rodape__textos">
         <p>Preços coletados das lojas. Eles mudam rápido: confira na loja antes de pagar.</p>
-        <p>Alguns links são de afiliado: se você comprar por eles, o PreçoCerto pode receber uma comissão, sem custo extra para você. Como Associado da Amazon, ganho com compras qualificadas.</p>
+        <p>Alguns links são de afiliado: se você comprar por eles, o Preço Certo GGA pode receber uma comissão, sem custo extra para você. Como Associado da Amazon, ganho com compras qualificadas.</p>
       </div>
       <nav class="rodape__links" aria-label="Rodapé">
         <a href="#busca">Nova busca</a>
