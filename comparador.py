@@ -414,9 +414,35 @@ LOJAS = {
 }
 
 
+def ler_lojas(texto: str | list[str] | None) -> tuple[list[str], list[str]]:
+    """Interpreta a escolha de lojas. Retorna (chaves válidas, nomes desconhecidos).
+
+    Aceita vírgula, ponto e vírgula ou espaço entre as lojas e ignora maiúsculas:
+    "amazon,kabum", "Amazon, Kabum" e "amazon kabum" dão o mesmo resultado.
+    (O PowerShell transforma -Lojas amazon,kabum em "amazon kabum".)
+    """
+    if texto is None:
+        return list(LOJAS), []
+    if not isinstance(texto, str):
+        texto = ",".join(texto)
+    validas, desconhecidas = [], []
+    for parte in re.split(r"[\s,;]+", texto.strip().lower()):
+        if not parte:
+            continue
+        if parte in LOJAS:
+            if parte not in validas:
+                validas.append(parte)
+        else:
+            desconhecidas.append(parte)
+    return validas, desconhecidas
+
+
 def buscar_em_lojas(termo: str, chaves: list[str] | None = None) -> dict[str, list[Produto]]:
-    """Busca em paralelo nas lojas escolhidas. Retorna {nome da loja: produtos}."""
-    chaves = [c for c in (chaves or LOJAS) if c in LOJAS]
+    """Busca em paralelo nas lojas escolhidas. Retorna {nome da loja: produtos},
+    com uma entrada para cada loja pedida, mesmo que ela volte vazia."""
+    chaves, desconhecidas = ler_lojas(chaves)
+    for nome in desconhecidas:
+        print(f"  [aviso] loja desconhecida ignorada: {nome!r} (válidas: {', '.join(LOJAS)})")
 
     def tarefa(chave):
         nome, funcao = LOJAS[chave]
@@ -426,8 +452,10 @@ def buscar_em_lojas(termo: str, chaves: list[str] | None = None) -> dict[str, li
             print(f"  [erro] {nome}: {erro}")
             return nome, []
 
+    resultado = {LOJAS[c][0]: [] for c in chaves}  # ordem e presença garantidas
     with ThreadPoolExecutor(max_workers=len(chaves) or 1) as pool:
-        return dict(pool.map(tarefa, chaves))
+        resultado.update(pool.map(tarefa, chaves))
+    return resultado
 
 
 # =============================================================== comparação
@@ -506,11 +534,22 @@ def main():
     chaves = None
     if "--lojas" in args:
         i = args.index("--lojas")
-        chaves = args[i + 1].split(",") if i + 1 < len(args) else None
+        if i + 1 >= len(args):
+            print(f"Informe as lojas depois de --lojas (válidas: {', '.join(LOJAS)}).")
+            sys.exit(2)
+        chaves, desconhecidas = ler_lojas(args[i + 1])
         args = args[:i] + args[i + 2:]
+        if desconhecidas:  # erro claro em vez de pular a loja em silêncio
+            print(f"Loja(s) desconhecida(s): {', '.join(desconhecidas)}. "
+                  f"Válidas: {', '.join(LOJAS)}.")
+            sys.exit(2)
+        if not chaves:
+            print(f"Nenhuma loja escolhida. Válidas: {', '.join(LOJAS)}.")
+            sys.exit(2)
     termo = " ".join(args) or input("O que deseja buscar? ")
 
-    print(f"\nBuscando '{termo}'...\n")
+    nomes = ", ".join(LOJAS[c][0] for c in (chaves or LOJAS))
+    print(f"\nBuscando '{termo}' em {nomes}...\n")
     por_loja = buscar_em_lojas(termo, chaves)
     for loja, produtos in por_loja.items():
         print(f"  {loja:<14} {len(produtos)} produtos")
