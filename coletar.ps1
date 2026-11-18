@@ -4,14 +4,14 @@
 # Uso (PowerShell, nesta pasta):
 #     .\coletar.ps1
 #     .\coletar.ps1 -Lojas kabum
-#     .\coletar.ps1 -Lojas amazon,kabum,pichau
+#     .\coletar.ps1 -Lojas amazon,kabum
 #
 # A string do banco fica no arquivo .env desta pasta, numa linha assim:
 #     DATABASE_URL=postgresql://postgres.xxxx:SENHA@aws-1-us-east-2.pooler.supabase.com:5432/postgres
 # (o .env não vai para o GitHub)
 
 param(
-    [string]$Lojas = "amazon,kabum"
+    [string]$Lojas = "amazon,kabum,pichau"
 )
 
 $pasta = $PSScriptRoot
