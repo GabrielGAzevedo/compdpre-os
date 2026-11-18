@@ -32,7 +32,7 @@ import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from urllib.parse import quote, quote_plus, urljoin
+from urllib.parse import quote, quote_plus, unquote, urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -232,18 +232,40 @@ def produtos_por_seletor(soup, base_url, card, nome, preco, link=None) -> list[P
 
 
 # ==================================================================== Amazon
+ASIN_RE = re.compile(r"^[A-Z0-9]{10}$")
+ASIN_NO_LINK_RE = re.compile(r"/(?:dp|gp/product)/([A-Z0-9]{10})")
+
+
+def asin_do_card(card) -> str | None:
+    """ASIN do card: vem no atributo data-asin; se faltar, tenta achar no link.
+
+    Anúncios patrocinados apontam para /sspa/click?...&url=%2F...%2Fdp%2FASIN,
+    então o /dp/ só aparece codificado dentro do link.
+    """
+    asin = (card.get("data-asin") or "").strip().upper()
+    if ASIN_RE.match(asin):
+        return asin
+    for a in card.select("a[href]"):
+        achado = ASIN_NO_LINK_RE.search(unquote(a["href"]))
+        if achado:
+            return achado.group(1)
+    return None
+
+
 def parse_amazon(html: str) -> list[Produto]:
     soup = BeautifulSoup(html, "html.parser")
     produtos = []
     for card in soup.select('div[data-component-type="s-search-result"]'):
         titulo = card.select_one("h2 span") or card.select_one("h2")
         preco = card.select_one("span.a-price span.a-offscreen")
-        link = card.select_one("a.a-link-normal[href*='/dp/']") or card.select_one("h2 a")
-        if not (titulo and preco and link):
-            continue  # anúncio sem preço, indisponível etc.
+        asin = asin_do_card(card)
+        if not (titulo and preco and asin):
+            continue  # card sem preço, indisponível etc.
         valor = texto_para_preco(preco.get_text())
         if valor:
-            url = urljoin("https://www.amazon.com.br", link["href"].split("?")[0])
+            # URL canônica pelo ASIN: anúncio e resultado normal do mesmo
+            # produto viram o mesmo link, e o finalizar() remove o repetido.
+            url = f"https://www.amazon.com.br/dp/{asin}"
             produtos.append(Produto("", titulo.get_text(strip=True), valor, url))
     return finalizar(produtos, "Amazon")
 
